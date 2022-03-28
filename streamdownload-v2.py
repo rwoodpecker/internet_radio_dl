@@ -4,8 +4,8 @@ import aiohttp
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 import sys
+import os
 import random
-import logging
 
 url = "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac"
 base_file_name = "-raw_fm.aac"
@@ -19,23 +19,25 @@ error_time = False
 def update_time():
     global current_time
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # if stream.statusprint(f"Creating new recording file at {current_time}")
-
-
-# async def function to check URL on first visit https://stackoverflow.com/questions/50577117/how-to-check-url-status-code-using-aiohttp & https://stackoverflow.com/questions/41398596/two-independent-async-loops-in-python
+    # Only announce creation of a new file if not stuck in an error.
+    current_file = current_time + base_file_name
+    if not error_time:
+        print(f"Attempting to record to: {current_time + base_file_name}.")
 
 
 async def record_station():
     url = "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac"
-    logging.getLogger("asyncio").setLevel(logging.CRITICAL)
     global last_used_fn, session, error_time, run_before
     session = aiohttp.ClientSession()
-    # put this in a while true and call loop externally? https://stackoverflow.com/questions/55971194/restart-asyncio-loop-in-exception
     while True:
         try:
             async with session.get(url) as resp:
-                if not run_before and resp.ok:
-                    print("URL returned 200 OK")
+                if not run_before and resp.status == 404:
+                    sys.exit("URL is 404. Check the link. Exiting.")
+                elif not run_before and resp.ok:
+                    print(
+                        f"URL returned 200 OK. Starting the scheduled recording at {current_time}"
+                    )
                     run_before = True
                 if error_time:
                     print(
@@ -51,7 +53,7 @@ async def record_station():
                         write_file.write(chunk)
                         last_used_fn = file_name
                         continue
-                    # If apscheduler doesn't announce an incremented filename then only write the chunk to the already opened file.
+                    # If apscheduler doesn't announce an incremented filename then write the chunk to the already opened file.
                     elif current_time + base_file_name == last_used_fn:
                         write_file.write(chunk)
                     # If apscheduler announces a new filename then open that new file and begin writing to it.
@@ -60,33 +62,20 @@ async def record_station():
                         write_file = open(file_name, "ab")
                         write_file.write(chunk)
                         last_used_fn = file_name
-        except KeyboardInterrupt:
-            sys.exit("Exiting.")
         except (asyncio.TimeoutError, aiohttp.ClientError):
-            sleep_time = random.randrange(5, 10)
-        print(f"Could not connect to stream, retrying after {sleep_time} seconds.")
-        error_time = datetime.now()
-        await asyncio.sleep(sleep_time)
+            sleep_time = random.randrange(5, 60)
+            print(f"Could not connect to stream, retrying after {sleep_time} seconds.")
+            error_time = datetime.now()
+            await asyncio.sleep(sleep_time)
 
 
 if __name__ == "__main__":
     ap_schedule = BackgroundScheduler()
     ap_schedule.add_job(update_time, trigger="cron", hour="*", minute="*/1")
     ap_schedule.start()
-
-    print(f"Starting the scheduler recording at {current_time}")
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(record_station())
-    loop.close()
-
-    # while True:
-    #     try:
-    #         asyncio.run(main())
-    #     except KeyboardInterrupt:
-    #         sys.exit("Exiting.")
-    #     except (asyncio.TimeoutError, aiohttp.ClientError):
-    #         sleep_time = random.randrange(5, 10)
-    #         print(f"Could not connect to stream, retrying after {sleep_time} seconds.")
-    #         error_time = datetime.now()
-    #         sleep(sleep_time)
+    try:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(record_station())
+        loop.close()
+    except KeyboardInterrupt:
+        sys.exit("Received keyboard interrupt, exiting.")
