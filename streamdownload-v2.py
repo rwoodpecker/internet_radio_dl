@@ -14,6 +14,7 @@ chunk_size = int(1024)
 last_used_fn = None
 run_before = False
 error_time = False
+current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
 def update_time():
@@ -48,16 +49,15 @@ async def record_station():
                     # Apscheduler won't have set a time by the first run so we set it here:
                     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                     print(
-                        f"URL returned 200 OK. Saving headers to: {headers_file} and recording started at: {current_time}"
+                        f"URL returned 200 OK. Saving headers to: {headers_file} and recording started at: {current_time}."
                     )
                     run_before = True
                 if error_time:
                     # Don't set a date here.
                     # On resume it will continue writing to the filename as set by apschedule
                     # OR if it's the first successful run, it will get the date from not run_before above.
-
                     print(
-                        f"Resumed recording after {str((datetime.now() - error_time)).split('.')[0]}."
+                        f"Resumed recording after {str(datetime.now() - error_time).split('.')[0]}."
                     )
                     error_time = False
                 async for chunk in resp.content.iter_chunked(chunk_size):
@@ -77,11 +77,17 @@ async def record_station():
                         write_file = open(file_name, "ab")
                         write_file.write(chunk)
                         last_used_fn = file_name
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            sleep_time = random.randrange(5, 60)
+        except OSError:
+            pass
+        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+            sleep_time = "0"
+            # if timeout < 1 sceond ignore
+            # sleep_time = random.randrange(5, 60)
             print(f"Could not connect to stream, retrying after {sleep_time} seconds.")
+            print(datetime.now())
+            print(e.__class__)
             error_time = datetime.now()
-            await asyncio.sleep(sleep_time)
+            # await asyncio.sleep(sleep_time)
 
 
 if __name__ == "__main__":
