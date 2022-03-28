@@ -6,8 +6,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import sys
 import os
 import random
+import re
 
 url = "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac"
+expected_content_type = "audio/*"
 base_file_name = "-raw_fm.aac"
 current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 chunk_size = int(1024)
@@ -26,12 +28,13 @@ def update_time():
 
 
 async def record_station():
-    url = "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac"
-    global last_used_fn, session, error_time, run_before
+    global last_used_fn, error_time, run_before
     session = aiohttp.ClientSession()
     while True:
         try:
             async with session.get(url) as resp:
+                if not re.match(expected_content_type, resp.headers["content-type"]):
+                    sys.exit("Server's content-type is not audio. Check the link.")
                 if not run_before and resp.status == 404:
                     sys.exit("URL is 404. Check the link. Exiting.")
                 elif not run_before and resp.ok:
