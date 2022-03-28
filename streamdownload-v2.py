@@ -81,13 +81,13 @@ async def record_station():
             pass
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             sleep_time = "0"
-            # if timeout < 1 sceond ignore
-            # sleep_time = random.randrange(5, 60)
+            # if timeout < 1 second ignore timeout error? constant microsecond timeouts.
+            sleep_time = random.randrange(5, 60)
             print(f"Could not connect to stream, retrying after {sleep_time} seconds.")
             print(datetime.now())
             print(e.__class__)
             error_time = datetime.now()
-            # await asyncio.sleep(sleep_time)
+            await asyncio.sleep(sleep_time)
 
 
 if __name__ == "__main__":
