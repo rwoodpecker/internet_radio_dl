@@ -10,7 +10,11 @@ url = "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac"
 expected_content_type = "audio/*"
 base_file_name = "raw_fm.aac"
 name_seperator = "-"
-chunk_size = int(1024)
+recording_length = 0  # in seconds - 0 means forever.
+web_headers = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; rv:98.0) Gecko/20100101 Firefox/98.0"
+}
+chunk_size = 1024
 last_used_fn = None
 run_before = False
 error_time = False
@@ -33,23 +37,25 @@ async def record_station():
     session = aiohttp.ClientSession()
     while True:
         try:
-            async with session.get(url) as resp:
+            async with session.get(
+                url, timeout=recording_length, headers=web_headers
+            ) as resp:
                 if not re.match(expected_content_type, resp.headers["content-type"]):
                     sys.exit("Server's content-type is not audio. Check the link.")
                 if not run_before and resp.status == 404:
                     sys.exit("URL is 404. Check the link.")
                 elif not run_before and resp.ok:
-                    headers_file = (
+                    headers_dump_file = (
                         datetime.now().strftime("%Y-%m-%d-")
                         + base_file_name
                         + "-headers"
                         ".txt"
                     )
-                    open(headers_file, "w").write(str(resp.headers))
+                    open(headers_dump_file, "w").write(str(resp.headers))
                     # Apscheduler won't have set a time by the first run so we set it here:
                     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                     print(
-                        f"URL returned 200 OK. Saving headers to: {headers_file} and recording started at: {current_time}."
+                        f"URL returned 200 OK. Saving headers to: {headers_dump_file} and recording started at: {current_time}."
                     )
                     run_before = True
                 if error_time:
@@ -80,8 +86,6 @@ async def record_station():
         except OSError:
             pass
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
-            sleep_time = "0"
-            # if timeout < 1 second ignore timeout error? constant microsecond timeouts.
             sleep_time = random.randrange(5, 60)
             print(f"Could not connect to stream, retrying after {sleep_time} seconds.")
             print(datetime.now())
