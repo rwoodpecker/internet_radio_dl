@@ -1,5 +1,4 @@
 import asyncio
-from fileinput import filename
 import aiohttp
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -87,7 +86,7 @@ async def record_station():
 
 if __name__ == "__main__":
     ap_schedule = BackgroundScheduler()
-    ap_schedule.add_job(update_time, trigger="cron", hour="*", minute="*/59")
+    ap_schedule.add_job(update_time, trigger="cron", hour="*")
     ap_schedule.start()
     try:
         loop = asyncio.get_event_loop()
