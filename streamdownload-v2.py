@@ -27,9 +27,7 @@ def update_time():
     # Only announce creation of a new file if not stuck in an error.
     current_file = current_time + base_file_name
     if not error_time:
-        print(
-            f"Attempting to record to: {current_time + name_seperator + base_file_name}."
-        )
+        print(f"Recording to: {current_time + name_seperator + base_file_name}.")
 
 
 async def record_station():
