@@ -12,7 +12,6 @@ dict_streams = {
     "raw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
     "claw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
 }
-
 ```
 3. run python stream_download.py, preferrably in screen or tmux if you intend to run it indefinitely.
 
