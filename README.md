@@ -1,6 +1,6 @@
 # stream_download
 
-stream_download is a python tool that is used to internet radio streams and can be considered a modern replacement for [streamripper](http://streamripper.sourceforge.net/). It supports recording multiple streams at the same time.
+stream_download is a python tool that is used to internet download / archive internet radio streams and can be considered a modern replacement for [streamripper](http://streamripper.sourceforge.net/). It supports recording multiple streams at the same time.
 
 ## Basic usage:
 
