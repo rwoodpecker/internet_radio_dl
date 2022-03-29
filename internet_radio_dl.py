@@ -114,8 +114,6 @@ async def record_station(station_name, station_url):
                         write_file = open(file_name, "ab")
                         write_file.write(chunk)
                         last_used_fn = file_name
-        except OSError:
-            pass
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             sleep_time = random.randrange(5, 60)
             error_time = datetime.now()
