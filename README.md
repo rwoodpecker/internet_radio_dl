@@ -1,4 +1,4 @@
-# stream_download
+# internet_radio_dl
 
 stream_download is a python tool that is used to internet download / archive internet radio streams and can be considered a modern replacement for [streamripper](http://streamripper.sourceforge.net/). It supports recording multiple streams at the same time.
 
@@ -13,7 +13,7 @@ dict_streams = {
     "claw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
 }
 ```
-3. run python stream_download.py, preferrably in screen or tmux if you intend to run it indefinitely.
+3. run python internet_radio_dl.py, preferrably in screen or tmux if you intend to run it indefinitely.
 
 ## Technical notes
 
