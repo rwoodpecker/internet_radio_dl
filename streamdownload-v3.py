@@ -69,7 +69,7 @@ async def record_station(station_name, station_url):
                     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                     run_before = True
                     print(
-                        f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording started at: {current_time}."
+                        f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {current_time}."
                     )
                 if error_time:
                     # Don't set a date here.
