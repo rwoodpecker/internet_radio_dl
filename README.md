@@ -13,6 +13,27 @@ dict_streams = {
     "claw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
 }
 ```
+
+If you only want to record one stream or prefer not to use a dictionary you can pass the script a URL and station name to record.
+
+For example: python internet_radio_dl.py --url http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac --name raw_fm
+
+or
+
+python internet_radio_dl.py -u http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac -n raw_fm
+
+```
+usage: internet_radio_dl.py [-h] [-u URL] [-n NAME]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -u URL, --url URL     url of stream
+  -n NAME, --name NAME  shortname of stream e.g. raw_fm
+```
+
+
+
+
 3. run python internet_radio_dl.py, preferrably in screen or tmux if you intend to run it indefinitely.
 
 ## Technical notes

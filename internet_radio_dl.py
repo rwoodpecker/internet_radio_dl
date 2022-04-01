@@ -5,6 +5,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import sys
 import random
 import re
+import argparse
+
 
 dict_streams = {
     "raw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
@@ -17,6 +19,21 @@ web_headers = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; rv:98.0) Gecko/20100101 Firefox/98.0"
 }
 chunk_size = 1024
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-u", "--url", type=str, help="url of stream")
+parser.add_argument("-n", "--name", type=str, help="shortname of stream e.g. raw_fm")
+args = parser.parse_args()
+
+args_provided = False
+if len(sys.argv) > 1:
+    args_provided = True
+    if args.url and args.name is None:
+        parser.error("-u or --url  requires -n or --name")
+    if args.name and args.url is None:
+        parser.error("-n or --name requires -u or --url")
+    if not args.url.startswith("http"):
+        parser.error("URL must start with http")
 
 
 def update_time():
@@ -122,8 +139,11 @@ async def record_station(station_name, station_url):
 
 def run_loop():
     loop = asyncio.get_event_loop()
-    for key, value in dict_streams.items():
-        loop.create_task(record_station(key, value))
+    if args_provided:
+        loop.create_task(record_station(args.name, args.url))
+    else:
+        for key, value in dict_streams.items():
+            loop.create_task(record_station(key, value))
     loop.run_forever()
 
 
