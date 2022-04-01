@@ -26,15 +26,12 @@ python internet_radio_dl.py -u http://frontend.stream.rawfm.net.au/i/syd-stream-
 usage: internet_radio_dl.py [-h] [-u URL] [-n NAME]
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -u URL, --url URL     url of stream
-  -n NAME, --name NAME  shortname of stream e.g. raw_fm
+-h, --help            show this help message and exit
+-u URL, --url URL     url of stream
+-n NAME, --name NAME  shortname of stream e.g. raw_fm
 ```
 
-
-
-
-3. run python internet_radio_dl.py, preferrably in screen or tmux if you intend to run it indefinitely.
+3. Run python internet_radio_dl.py, preferrably in screen or tmux if you intend to run it indefinitely.
 
 ## Technical notes
 
