@@ -132,7 +132,8 @@ async def record_station(station_name, station_url):
 
 
 def run_loop():
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     if args_provided:
         loop.create_task(record_station(args.name, args.url))
     else:
