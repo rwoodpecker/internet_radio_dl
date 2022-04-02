@@ -14,7 +14,7 @@ dict_streams = {
 }
 ```
 
-If you only want to record one stream or prefer not to use a dictionary you can pass the script a URL and station name to record.
+* If you only want to record one stream or prefer not to use the dictionary you can pass the script a URL and station name to record.
 
 For example: python internet_radio_dl.py --url http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac --name raw_fm
 
@@ -22,13 +22,19 @@ or
 
 python internet_radio_dl.py -u http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac -n raw_fm
 
+If using the --url command you must also specify a --name of the station.
+
+#### By default, the recordings are stored in your ~Downloads folder. This can be modified in the sript or you can specify a folder by using the -d or --directory argument on the command line. You don't need to pass the script a --url or --name on the command line for the --directory argument to be accepted. If no URL or station name is provided it will default to the those located in the script.
+
+For all options see:
 ```
-usage: internet_radio_dl.py [-h] [-u URL] [-n NAME]
+usage: internet_radio_dl.py [-h] [-u URL] [-n NAME] [-d DIRECTORY]
 
 optional arguments:
--h, --help            show this help message and exit
--u URL, --url URL     url of stream
--n NAME, --name NAME  shortname of stream e.g. raw_fm
+  -h, --help            show this help message and exit
+  -u URL, --url URL     url of stream
+  -n NAME, --name NAME  shortname of stream e.g. raw_fm
+  -d DIRECTORY, --directory DIRECTORY  directory to save files to
 ```
 
 3. Run python internet_radio_dl.py, preferrably in screen or tmux if you intend to run it indefinitely.
@@ -44,4 +50,4 @@ optional arguments:
 * On first succesful connection to the stream the first file will be timestamped for the time of connection, and then subsequent files will be timestamped each hour.
 * You must supply a valid URL. On initial connection each URL will be checked for a valid HTTP response code and audio-type. Currently if there is an issue with either of these the script will exit to alert the user to check their URLs.
 * This is an archival tool, as such it handles all disconnects or timeouts quickly. The script will agressively attempt to reconnect to the stream on error in a random range between 5 and 60 seconds.
-* It is safe to keyboard interrupt (control +c ) this tool, otherwise it will run and archive the streams forever.
+* It is safe to keyboard interrupt (control + c ) this tool, otherwise it will run and archive the streams forever.

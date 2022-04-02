@@ -6,8 +6,9 @@ import sys
 import random
 import re
 import argparse
+import os
 
-
+save_to_directory = os.path.join(os.path.expanduser("~"), "Downloads")
 dict_streams = {
     "raw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
     "claw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
@@ -23,17 +24,9 @@ chunk_size = 1024
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--url", type=str, help="url of stream")
 parser.add_argument("-n", "--name", type=str, help="shortname of stream e.g. raw_fm")
+parser.add_argument("-d", "--directory", type=str, help="directory to save files to")
 args = parser.parse_args()
-
 args_provided = False
-if len(sys.argv) > 1:
-    args_provided = True
-    if args.url and args.name is None:
-        parser.error("-u or --url  requires -n or --name")
-    if args.name and args.url is None:
-        parser.error("-n or --name requires -u or --url")
-    if not args.url.startswith("http"):
-        parser.error("URL must start with http")
 
 
 def update_time():
@@ -149,6 +142,18 @@ def run_loop():
 
 
 if __name__ == "__main__":
+    if args.directory:
+        os.chdir(args.directory)
+    else:
+        os.chdir(save_to_directory)
+    if args.url and args.name is None:
+        parser.error("-u or --url  requires -n or --name")
+    if args.name and args.url is None:
+        parser.error("-n or --name requires -u or --url")
+    if args.url and not args.url.startswith("http"):
+        parser.error("URL must start with http")
+    if args.name and args.url:
+        args_provided = True
     ap_schedule = BackgroundScheduler()
     ap_schedule.add_job(update_time, trigger="cron", hour="*")
     ap_schedule.start()
