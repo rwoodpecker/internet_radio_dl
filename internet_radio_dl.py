@@ -77,11 +77,6 @@ async def record_station(station_name, station_url):
                 if not run_before and resp.status == 404:
                     sys.exit("URL is 404. Check the link.")
                 elif not run_before and resp.ok:
-                    headers_dump_file = (
-                        datetime.now().strftime("%Y-%m-%d-") + station_name + "-headers"
-                        ".txt"
-                    )
-                    open(headers_dump_file, "w").write(str(resp.headers))
                     # Apscheduler won't have set a time by the first run so we set it here:
                     dump_file_time = datetime.now()
                     current_time = dump_file_time.strftime("%Y-%m-%d_%H-%M-%S")
