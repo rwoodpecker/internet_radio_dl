@@ -83,11 +83,20 @@ async def record_station(station_name, station_url):
                     )
                     open(headers_dump_file, "w").write(str(resp.headers))
                     # Apscheduler won't have set a time by the first run so we set it here:
-                    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                    dump_file_time = datetime.now()
+                    current_time = dump_file_time.strftime("%Y-%m-%d_%H-%M-%S")
                     run_before = True
-                    print(
-                        f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {current_time}."
+                    headers_dump_file = (
+                        dump_file_time.strftime("%Y-%m-%d-")
+                        + station_name
+                        + "_metadata"
+                        ".txt"
                     )
+                    start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time.strftime('%Y-%m-%d %H:%M:%S')} {dump_file_time.astimezone().tzname()}."
+                    open(headers_dump_file, "w").write(
+                        f"{start_message}\n \nHeaders file: {str(resp.headers)}"
+                    )
+                    print(start_message)
                 if error_time:
                     # Don't set a date here.
                     # On resume it will continue writing to the filename as set by apschedule
@@ -97,9 +106,6 @@ async def record_station(station_name, station_url):
                     )
                     error_time = False
                 async for chunk in resp.content.iter_chunked(chunk_size):
-                    # increase chunk size bigger and check last time since chunk size, if >60 seconds, re-start.
-                    # print(f"chunk size is {sys.getsizeof(chunk)}")
-                    # Get the filename for the first run.
                     if not last_used_fn:
                         file_name = (
                             current_time
