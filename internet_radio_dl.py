@@ -126,9 +126,13 @@ async def record_station(station_name, station_url):
                         write_file.write(chunk)
                         last_used_fn = file_name
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
-            sleep_time = random.randrange(5, 60)
-            error_time = datetime.now()
             retry_attempts += 1
+            # Aggressive attempt to reconnect on error.
+            if retry_attempts < 3:
+                sleep_time = random.randrange(2, 5)
+            else:
+                sleep_time = random.randrange(5, 90)
+            error_time = datetime.now()
 
 
 def run_loop():
