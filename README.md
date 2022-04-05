@@ -14,7 +14,7 @@ dict_streams = {
 }
 ```
 
-* If you only want to record one stream or prefer not to use the dictionary you can pass the script a URL and station name to record.
+If you only want to record one stream or prefer not to use the dictionary you can pass the script a URL and station name to record.
 
 For example: python internet_radio_dl.py --url http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac --name raw_fm
 
@@ -24,7 +24,7 @@ python internet_radio_dl.py -u http://frontend.stream.rawfm.net.au/i/syd-stream-
 
 If using the --url command you must also specify a --name of the station.
 
-#### By default, the recordings are stored in your ~Downloads folder. This can be modified in the sript or you can specify a folder by using the -d or --directory argument on the command line. You don't need to pass the script a --url or --name on the command line for the --directory argument to be accepted. If no URL or station name is provided it will default to the those located in the script.
+By default, the recordings are stored in your ~Downloads folder. This can be modified in the sript or you can specify a folder by using the -d or --directory argument on the command line. You don't need to pass the script a --url or --name on the command line for the --directory argument to be accepted. If no URL or station name is provided it will default to the those located in the script.
 
 For all options see:
 ```
@@ -38,6 +38,8 @@ optional arguments:
 ```
 
 3. Run python internet_radio_dl.py, preferrably in screen or tmux if you intend to run it indefinitely.
+
+For logging the output to a text file run as python -u internet_radio.py < any options> > station_name.log 
 
 ## Technical notes
 
