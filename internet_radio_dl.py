@@ -128,7 +128,7 @@ async def record_station(station_name, station_url):
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             retry_attempts += 1
             # Aggressive attempt to reconnect on error.
-            if retry_attempts < 3:
+            if retry_attempts < 5:
                 sleep_time = random.randrange(2, 5)
             else:
                 sleep_time = random.randrange(5, 90)
