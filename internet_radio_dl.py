@@ -17,7 +17,7 @@ dict_streams = {
 expected_content_type = "audio/*"
 name_seperator = "-"
 web_headers = {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; rv:99.0) Gecko/20100101 Firefox/99.0"
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:108.0) Gecko/20100101 Firefox/108.0"
 }
 chunk_size = 1024
 
@@ -41,7 +41,10 @@ async def record_station(station_name, station_url):
     retry_attempts = 0
     run_before = False
     error_time = False
-    file_extension = station_url[-4:]
+    if "/" in station_url[-1:]:
+        file_extension = "." + station_url[-4:-1]
+    else:
+        file_extension = station_url[-4:]
     session = aiohttp.ClientSession()
     while True:
         try:
