@@ -17,7 +17,7 @@ dict_streams = {
 expected_content_type = "audio/*"
 name_seperator = "-"
 web_headers = {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:108.0) Gecko/20100101 Firefox/108.0"
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0"
 }
 chunk_size = 1024
 
@@ -84,9 +84,10 @@ async def record_station(station_name, station_url):
                         ".txt"
                     )
                     start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time.strftime('%Y-%m-%d %H:%M:%S')} {dump_file_time.astimezone().tzname()}."
-                    open(headers_dump_file, "w").write(
-                        f"{start_message}\n \nHeaders file: {str(resp.headers)}"
-                    )
+                    headers_write = open(headers_dump_file, "w")
+                    headers_write.write(
+                        f"{start_message}\n \nHeaders file: {str(resp.headers)}")
+                    headers_write.close()
                     print(start_message)
                 if error_time:
                     # Don't set a date here.
@@ -119,6 +120,7 @@ async def record_station(station_name, station_url):
                         print(
                             f"New recording file for {station_name} is {current_time}."
                         )
+                        write_file.close()
                         file_name = (
                             current_time
                             + name_seperator
