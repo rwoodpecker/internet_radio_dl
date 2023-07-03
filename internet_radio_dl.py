@@ -7,15 +7,16 @@ import random
 import re
 import argparse
 import os
+import time
 
 save_to_directory = os.path.join(os.path.expanduser("~"), "Downloads")
 dict_streams = {
-    "raw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
-    "claw_fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
+    "raw-fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
+    "claw-fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
 }
 
 expected_content_type = "audio/*"
-name_seperator = "-"
+name_seperator = "_"
 web_headers = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0"
 }
@@ -31,7 +32,7 @@ args_provided = False
 
 def update_time():
     global current_time
-    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    current_time = datetime.now().replace(microsecond=0).isoformat().replace(":","-")
 
 
 async def record_station(station_name, station_url):
@@ -41,6 +42,7 @@ async def record_station(station_name, station_url):
     retry_attempts = 0
     run_before = False
     error_time = False
+    utc_offset = time.strftime("%z")
     if "/" in station_url[-1:]:
         file_extension = "." + station_url[-4:-1]
     else:
@@ -74,33 +76,37 @@ async def record_station(station_name, station_url):
                     sys.exit("URL is 404. Check the link.")
                 elif not run_before and resp.ok:
                     # Apscheduler won't have set a time by the first run so we set it here:
-                    dump_file_time = datetime.now()
-                    current_time = dump_file_time.strftime("%Y-%m-%d_%H-%M-%S")
+                    dump_file_time = datetime.now().replace(microsecond=0).isoformat()
+                    current_time = dump_file_time.replace(":","-")
                     run_before = True
                     headers_dump_file = (
-                        dump_file_time.strftime("%Y-%m-%d-")
+                        dump_file_time.replace(":","-") 
+                        + utc_offset 
+                        + name_seperator
                         + station_name
                         + "_metadata"
                         ".txt"
                     )
-                    start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time.strftime('%Y-%m-%d %H:%M:%S')} {dump_file_time.astimezone().tzname()}."
+                    start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset}."
                     headers_write = open(headers_dump_file, "w")
                     headers_write.write(
                         f"{start_message}\n \nHeaders file: {str(resp.headers)}")
                     headers_write.close()
                     print(start_message)
                 if error_time:
-                    # Don't set a date here.
-                    # On resume it will continue writing to the filename as set by apschedule
+                    # Don't set a datetime here.
+                    # On resume it will continue writing to the filename as set by apscheduler.
                     # OR if it's the first successful run, it will get the date from not run_before above.
                     print(
                         f"{station_name} resumed recording after {str(datetime.now() - error_time).split('.')[0]}."
                     )
+                    trigger_update_time = datetime.now().replace(microsecond=0).isoformat().replace(":","-")
                     error_time = False
                 async for chunk in resp.content.iter_chunked(chunk_size):
                     if not last_used_fn:
                         file_name = (
                             current_time
+                            + utc_offset
                             + name_seperator
                             + station_name
                             + file_extension
@@ -109,13 +115,13 @@ async def record_station(station_name, station_url):
                         write_file.write(chunk)
                         last_used_fn = file_name
                         continue
-                    # If apscheduler doesn't announce an incremented filename then write the chunk to the already opened file.
+                    # If apscheduler doesn't announce an incremented datetime then write the chunk to the already opened file.
                     elif (
-                        current_time + name_seperator + station_name + file_extension
+                        current_time + utc_offset + name_seperator + station_name + file_extension
                         == last_used_fn
                     ):
                         write_file.write(chunk)
-                    # If apscheduler announces a new filename then open that new file and begin writing to it.
+                    # If apscheduler announces a new datetime then open that new file and begin writing to it.
                     else:
                         print(
                             f"New recording file for {station_name} is {current_time}."
@@ -123,6 +129,7 @@ async def record_station(station_name, station_url):
                         write_file.close()
                         file_name = (
                             current_time
+                            + utc_offset
                             + name_seperator
                             + station_name
                             + file_extension
