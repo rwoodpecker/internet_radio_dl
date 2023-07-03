@@ -32,7 +32,7 @@ args_provided = False
 
 def update_time():
     global current_time
-    current_time = datetime.now().replace(microsecond=0).isoformat().replace(":","-")
+    current_time = datetime.now().replace(microsecond=0).isoformat().replace(":", "-")
 
 
 async def record_station(station_name, station_url):
@@ -48,6 +48,7 @@ async def record_station(station_name, station_url):
         file_extension = "." + station_url[-4:-1]
     else:
         file_extension = station_url[-4:]
+    standard_file_name = utc_offset + name_seperator + station_name + file_extension
     session = aiohttp.ClientSession()
     while True:
         try:
@@ -78,11 +79,11 @@ async def record_station(station_name, station_url):
                 elif not run_before and resp.ok:
                     # Apscheduler won't have set a time by the first run so we set it here:
                     dump_file_time = datetime.now().replace(microsecond=0).isoformat()
-                    current_time = dump_file_time.replace(":","-")
+                    current_time = dump_file_time.replace(":", "-")
                     run_before = True
                     headers_dump_file = (
-                        dump_file_time.replace(":","-") 
-                        + utc_offset 
+                        dump_file_time.replace(":", "-")
+                        + utc_offset
                         + name_seperator
                         + station_name
                         + "_metadata"
@@ -91,7 +92,8 @@ async def record_station(station_name, station_url):
                     start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}."
                     headers_write = open(headers_dump_file, "w")
                     headers_write.write(
-                        f"{start_message}\n \nHeaders file: {str(resp.headers)}")
+                        f"{start_message}\n \nHeaders file: {str(resp.headers)}"
+                    )
                     headers_write.close()
                     print(start_message)
                 if error_time:
@@ -104,22 +106,13 @@ async def record_station(station_name, station_url):
                     error_time = False
                 async for chunk in resp.content.iter_chunked(chunk_size):
                     if not last_used_fn:
-                        file_name = (
-                            current_time
-                            + utc_offset
-                            + name_seperator
-                            + station_name
-                            + file_extension
-                        )
+                        file_name = current_time + standard_file_name
                         write_file = open(file_name, "ab")
                         write_file.write(chunk)
                         last_used_fn = file_name
                         continue
                     # If apscheduler doesn't announce an incremented datetime then write the chunk to the already opened file.
-                    elif (
-                        current_time + utc_offset + name_seperator + station_name + file_extension
-                        == last_used_fn
-                    ):
+                    elif current_time + standard_file_name == last_used_fn:
                         write_file.write(chunk)
                     # If apscheduler announces a new datetime then open that new file and begin writing to it.
                     else:
@@ -127,13 +120,7 @@ async def record_station(station_name, station_url):
                             f"New recording file for {station_name} is {current_time}."
                         )
                         write_file.close()
-                        file_name = (
-                            current_time
-                            + utc_offset
-                            + name_seperator
-                            + station_name
-                            + file_extension
-                        )
+                        file_name = current_time + standard_file_name
                         write_file = open(file_name, "ab")
                         write_file.write(chunk)
                         last_used_fn = file_name
