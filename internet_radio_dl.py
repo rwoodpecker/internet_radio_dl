@@ -43,6 +43,7 @@ async def record_station(station_name, station_url):
     run_before = False
     error_time = False
     utc_offset = time.strftime("%z")
+    tz_name = datetime.now().astimezone().tzname()
     if "/" in station_url[-1:]:
         file_extension = "." + station_url[-4:-1]
     else:
@@ -58,7 +59,7 @@ async def record_station(station_name, station_url):
             if not run_before:
                 first_time_attempts += 1
                 print(
-                    f"Attempting initial connection to {station_name}... Attempt number #{first_time_attempts}."
+                    f"Attempting initial connection to {station_name}... attempt number #{first_time_attempts}."
                 )
                 if first_time_attempts < 2:
                     await asyncio.sleep(5)
@@ -87,7 +88,7 @@ async def record_station(station_name, station_url):
                         + "_metadata"
                         ".txt"
                     )
-                    start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset}."
+                    start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}."
                     headers_write = open(headers_dump_file, "w")
                     headers_write.write(
                         f"{start_message}\n \nHeaders file: {str(resp.headers)}")
@@ -100,7 +101,6 @@ async def record_station(station_name, station_url):
                     print(
                         f"{station_name} resumed recording after {str(datetime.now() - error_time).split('.')[0]}."
                     )
-                    trigger_update_time = datetime.now().replace(microsecond=0).isoformat().replace(":","-")
                     error_time = False
                 async for chunk in resp.content.iter_chunked(chunk_size):
                     if not last_used_fn:
