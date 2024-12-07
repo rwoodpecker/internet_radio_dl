@@ -49,6 +49,6 @@ For logging the output to a text file run as python -u internet_radio.py < any o
 * You must supply valid URLs. On initial connection each URL will be checked for a valid HTTP response code and audio-type. Ideally the URL will end with a valid audio file extension such as .mp3 or .aac. If it doesn't the script will try to determine if from the URL. If there is an issue with the URLs the script will exit to alert the user to check them.
 * On first succesful connection to the stream the file will be timestamped at the time of connection, and then subsequent files will be timestamped each hour.
 * This is an archival tool, as such it handles all disconnects or timeouts quickly. The script will agressively attempt to reconnect to the stream on error in a random range between 5 and 60 seconds. For the first 5 reconnect attempts a random range of 2 to 5 seconds is used.
-* The default user agent is Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0.
+* The default user agent is Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36.
 * There is a 5 second timeout on connecting and reading the audio stream.
 * It is safe to keyboard interrupt (control + c ) this tool, otherwise it will run and archive the streams forever.
