@@ -128,9 +128,9 @@ async def record_station(station_name, station_url):
             retry_attempts += 1
             # Aggressive attempt to reconnect on error.
             if retry_attempts < 5:
-                sleep_time = random.randrange(2, 5)
+                sleep_time = random.randrange(1, 2)
             else:
-                sleep_time = random.randrange(5, 90)
+                sleep_time = random.randrange(5, 30)
             error_time = datetime.now()
 
 
