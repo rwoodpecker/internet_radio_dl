@@ -11,14 +11,15 @@ import time
 
 save_to_directory = os.path.join(os.path.expanduser("~"), "Downloads")
 dict_streams = {
-    "raw-fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
-    "claw-fm": "http://frontend.stream.rawfm.net.au/i/syd-stream-192k.aac",
+    "groove-1": {"url": "https://ice2.somafm.com/groovesalad-128-aac", "ext": "aac"},
+    "groove-2": {"url": "https://ice2.somafm.com/groovesalad-128-aac", "ext": None},
+    # example of no extension being defined, default to guessing from station URL
 }
 
 expected_content_type = "audio/*"
 name_seperator = "_"
 web_headers = {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
 }
 chunk_size = 1024
 
@@ -35,7 +36,7 @@ def update_time():
     current_time = datetime.now().replace(microsecond=0).isoformat().replace(":", "-")
 
 
-async def record_station(station_name, station_url):
+async def record_station(station_name, station_url, ext=None):
     global current_time
     last_used_fn = None
     first_time_attempts = 0
@@ -44,10 +45,12 @@ async def record_station(station_name, station_url):
     error_time = False
     utc_offset = time.strftime("%z")
     tz_name = datetime.now().astimezone().tzname()
-    if "/" in station_url[-1:]:
-        file_extension = "." + station_url[-4:-1]
+    cleanurl = station_url.rstrip("/")
+    if ext:
+        file_extension = "." + ext.lstrip(".")
     else:
-        file_extension = station_url[-4:]
+        file_extension = "." + cleanurl.split("/")[-1].split(".")[-1]
+
     standard_file_name = utc_offset + name_seperator + station_name + file_extension
     session = aiohttp.ClientSession()
     while True:
@@ -68,8 +71,9 @@ async def record_station(station_name, station_url):
                     await asyncio.sleep(random.randrange(5, 60))
             async with session.get(
                 station_url,
-                timeout=aiohttp.ClientTimeout(total=None, sock_connect=5, sock_read=5),
+                timeout=aiohttp.ClientTimeout(total=None, sock_connect=5, sock_read=20),
                 headers=web_headers,
+                # sock_read 5 is usually ok. Can cause issues if stream inconsistently sends data. 20 is used for safety.
             ) as resp:
                 retry_attempts = 0
                 if not re.match(expected_content_type, resp.headers["content-type"]):
@@ -141,7 +145,9 @@ def run_loop():
         loop.create_task(record_station(args.name, args.url))
     else:
         for key, value in dict_streams.items():
-            loop.create_task(record_station(key, value))
+            url = value["url"]
+            ext = value.get("ext")
+            loop.create_task(record_station(key, url, ext))
     loop.run_forever()
 
 
