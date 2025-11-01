@@ -11,9 +11,13 @@ import time
 
 save_to_directory = os.path.join(os.path.expanduser("~"), "Downloads")
 dict_streams = {
-    "groove-1": {"url": "https://ice2.somafm.com/groovesalad-128-aac", "ext": "aac"},
-    "groove-2": {"url": "https://ice2.somafm.com/groovesalad-128-aac", "ext": None},
-    # example of no extension being defined, default to guessing from station URL
+    "groove-1": {
+        "url": "https://ice2.somafm.com/groovesalad-128-aac",
+        "ext": "aac",
+        "sock_timeout": "20",
+    },
+    "groove-2": {"url": "https://ice2.somafm.com/groovesalad-128-aac", "ext": None, "sock_timeout": None}
+    # example of no extension or sock_timeout being defined
 }
 
 expected_content_type = "audio/*"
@@ -36,7 +40,7 @@ def update_time():
     current_time = datetime.now().replace(microsecond=0).isoformat().replace(":", "-")
 
 
-async def record_station(station_name, station_url, ext=None):
+async def record_station(station_name, station_url, ext=None, sock_timeout=None):
     global current_time
     last_used_fn = None
     first_time_attempts = 0
@@ -46,13 +50,15 @@ async def record_station(station_name, station_url, ext=None):
     utc_offset = time.strftime("%z")
     tz_name = datetime.now().astimezone().tzname()
     cleanurl = station_url.rstrip("/")
+    session = aiohttp.ClientSession()
     if ext:
         file_extension = "." + ext.lstrip(".")
     else:
         file_extension = "." + cleanurl.split("/")[-1].split(".")[-1]
-
     standard_file_name = utc_offset + name_seperator + station_name + file_extension
-    session = aiohttp.ClientSession()
+    if sock_timeout is None:
+        sock_timeout = 5
+
     while True:
         try:
             if error_time:
@@ -93,7 +99,7 @@ async def record_station(station_name, station_url, ext=None):
                         + "_metadata"
                         ".txt"
                     )
-                    start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}."
+                    start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}. Socket timeout is: {sock_timeout}. Recording location: {save_to_directory}."
                     headers_write = open(headers_dump_file, "w")
                     headers_write.write(
                         f"{start_message}\n \nHeaders file: {str(resp.headers)}"
@@ -147,7 +153,8 @@ def run_loop():
         for key, value in dict_streams.items():
             url = value["url"]
             ext = value.get("ext")
-            loop.create_task(record_station(key, url, ext))
+            sock_timeout = value.get("sock_timeout")
+            loop.create_task(record_station(key, url, ext, sock_timeout))
     loop.run_forever()
 
 
