@@ -104,7 +104,7 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                         + "_metadata"
                         ".txt"
                     )
-                    start_message = f"URL: {station_url} returned 200 OK\nSaving {station_name} headers to: {headers_dump_file}\nRecording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}\nSocket timeout is: {sock_timeout}\nRecording location: {save_to_directory}\n"
+                    start_message = f"URL: {station_url} returned 200 OK\nSaving {station_name} headers to: {headers_dump_file}\nRecording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}\nSocket timeout is: {sock_timeout}\nRecording location: {save_to_directory}"
                     headers_write = open(headers_dump_file, "w")
                     headers_write.write(
                         f"{start_message}\n \nHeaders:\n{dict(resp.headers)}"
@@ -125,20 +125,19 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                         write_file = open(file_name, "ab")
                         write_file.write(chunk)
                         last_used_fn = file_name
+                        print(f"Started recording to: {file_name}\n")
                         continue
                     # If apscheduler doesn't announce an incremented datetime then write the chunk to the already opened file.
                     elif current_time + standard_file_name == last_used_fn:
                         write_file.write(chunk)
                     # If apscheduler announces a new datetime then open that new file and begin writing to it.
                     else:
-                        print(
-                            f"New recording file for {station_name} is {current_time}."
-                        )
                         write_file.close()
                         file_name = current_time + standard_file_name
                         write_file = open(file_name, "ab")
                         write_file.write(chunk)
                         last_used_fn = file_name
+                        print(f"New recording file for {station_name} is: {file_name}")
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             retry_attempts += 1
             # Aggressive attempt to reconnect on error.
