@@ -14,9 +14,13 @@ dict_streams = {
     "groove-1": {
         "url": "https://ice2.somafm.com/groovesalad-128-aac",
         "ext": "aac",
-        "sock_timeout": "20",
+        "sock_timeout": 20,
     },
-    "groove-2": {"url": "https://ice2.somafm.com/groovesalad-128-aac", "ext": None, "sock_timeout": None}
+    "groove-2": {
+        "url": "https://ice2.somafm.com/groovesalad-128-aac",
+        "ext": None,
+        "sock_timeout": None,
+    },
     # example of no extension or sock_timeout being defined
 }
 
@@ -77,9 +81,10 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                     await asyncio.sleep(random.randrange(5, 60))
             async with session.get(
                 station_url,
-                timeout=aiohttp.ClientTimeout(total=None, sock_connect=5, sock_read=20),
+                timeout=aiohttp.ClientTimeout(
+                    total=None, sock_connect=5, sock_read=sock_timeout
+                ),
                 headers=web_headers,
-                # sock_read 5 is usually ok. Can cause issues if stream inconsistently sends data. 20 is used for safety.
             ) as resp:
                 retry_attempts = 0
                 if not re.match(expected_content_type, resp.headers["content-type"]):
@@ -99,10 +104,10 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                         + "_metadata"
                         ".txt"
                     )
-                    start_message = f"URL returned 200 OK. Saving {station_name} headers to: {headers_dump_file} and recording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}. Socket timeout is: {sock_timeout}. Recording location: {save_to_directory}."
+                    start_message = f"URL: {station_url} returned 200 OK\nSaving {station_name} headers to: {headers_dump_file}\nRecording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}\nSocket timeout is: {sock_timeout}\nRecording location: {save_to_directory}\n"
                     headers_write = open(headers_dump_file, "w")
                     headers_write.write(
-                        f"{start_message}\n \nHeaders file: {str(resp.headers)}"
+                        f"{start_message}\n \nHeaders:\n{dict(resp.headers)}"
                     )
                     headers_write.close()
                     print(start_message)
