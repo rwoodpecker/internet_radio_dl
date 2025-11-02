@@ -67,13 +67,13 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
         try:
             if error_time:
                 print(
-                    f"Could not connect to {station_name} stream, retrying after {sleep_time} seconds. Retry attempt #{retry_attempts}."
+                    f"Could not connect to {station_name} stream, retrying after {sleep_time} seconds. Retry attempt #{retry_attempts}.\n"
                 )
                 await asyncio.sleep(sleep_time)
             if not run_before:
                 first_time_attempts += 1
                 print(
-                    f"Attempting initial connection to {station_name}... attempt number #{first_time_attempts}."
+                    f"Attempting initial connection to {station_name}... attempt number #{first_time_attempts}.\n"
                 )
                 if first_time_attempts < 2:
                     await asyncio.sleep(5)
@@ -104,7 +104,7 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                         + "_metadata"
                         ".txt"
                     )
-                    start_message = f"URL: {station_url} returned 200 OK\nSaving {station_name} headers to: {headers_dump_file}\nRecording with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}\nSocket timeout is: {sock_timeout}\nRecording location: {save_to_directory}"
+                    start_message = f"URL: {station_url} returned 200 OK\nSaving {station_name} headers to: {headers_dump_file}\nRecording {station_name} with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}\nSocket timeout is: {sock_timeout}\nRecording location: {save_to_directory}"
                     headers_write = open(headers_dump_file, "w")
                     headers_write.write(
                         f"{start_message}\n \nHeaders:\n{dict(resp.headers)}"

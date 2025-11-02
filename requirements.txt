@@ -1,2 +1,2 @@
-aiohttp==3.10.11
-apscheduler==3.10.1
+aiohttp
+apscheduler
