@@ -60,111 +60,99 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
     utc_offset = time.strftime("%z")
     tz_name = datetime.now().astimezone().tzname()
     cleanurl = station_url.rstrip("/")
-    session = aiohttp.ClientSession()
     if ext:
         file_extension = "." + ext.lstrip(".")
     else:
         file_extension = "." + cleanurl.split("/")[-1].split(".")[-1]
     standard_file_name = utc_offset + name_seperator + station_name + file_extension
+
     if sock_timeout is None:
         sock_timeout = 5
 
-    while True:
+    timeout = aiohttp.ClientTimeout(total=None, sock_connect=5, sock_read=sock_timeout)
+
+    # Use async with for the session so it closes cleanly.
+    async with aiohttp.ClientSession(timeout=timeout, headers=web_headers) as session:
         try:
-            if error_time:
-                print(
-                    f"Could not connect to {station_name} stream, retrying after {sleep_time} seconds. Retry attempt #{retry_attempts}.\n"
-                )
-                await asyncio.sleep(sleep_time)
-            if not run_before:
-                first_time_attempts += 1
-                print(
-                    f"Attempting initial connection to {station_name}... attempt number #{first_time_attempts}.\n"
-                )
-                if first_time_attempts < 2:
-                    await asyncio.sleep(5)
-                else:
-                    await asyncio.sleep(random.randrange(5, 60))
-            async with session.get(
-                station_url,
-                timeout=aiohttp.ClientTimeout(
-                    total=None, sock_connect=5, sock_read=sock_timeout
-                ),
-                headers=web_headers,
-            ) as resp:
-                retry_attempts = 0
-                if not resp.headers.get("content-type").startswith(
-                    expected_content_type
-                ):
-                    sys.exit(
-                        f"Server's content-type {resp.headers["content-type"]} is not audio. Check the URL."
-                    )
-                if not run_before and resp.status == 404:
-                    sys.exit("URL is 404. Check the link.")
-                elif not run_before and resp.ok:
-                    # Apscheduler won't have set a time by the first run so we set it here:
-                    dump_file_time = datetime.now().replace(microsecond=0).isoformat()
-                    current_time = dump_file_time.replace(":", "-")
-                    run_before = True
-                    headers_dump_file = (
-                        dump_file_time.replace(":", "-")
-                        + utc_offset
-                        + name_seperator
-                        + station_name
-                        + "_metadata"
-                        ".txt"
-                    )
-                    start_message = f"URL: {station_url} returned 200 OK.\nSaving {station_name} headers to: {headers_dump_file}.\nRecording {station_name} with content-type {resp.headers['content-type']} started at: {dump_file_time}{utc_offset} / {tz_name}.\nSocket timeout is: {sock_timeout}.\nRecording location: {save_to_directory}."
-                    headers_write = open(headers_dump_file, "w")
-                    headers_write.write(
-                        f"{start_message}\n \nHeaders:\n{dict(resp.headers)}"
-                    )
-                    headers_write.close()
-                    print(start_message)
+            while True:
                 if error_time:
-                    # Don't set a datetime here.
-                    # On resume it will continue writing to the filename as set by apscheduler.
-                    # OR if it's the first successful run, it will get the date from not run_before above.
-                    print(
-                        f"{station_name} resumed recording after {str(datetime.now() - error_time).split('.')[0]}."
-                    )
-                    error_time = False
-                async for chunk in resp.content.iter_chunked(chunk_size):
-                    if not last_used_fn:
-                        file_name = current_time + standard_file_name
-                        write_file = open(file_name, "ab")
-                        write_file.write(chunk)
-                        last_used_fn = file_name
-                        print(f"Started recording to: {file_name}.\n")
-                        continue
-                    # If apscheduler doesn't announce an incremented datetime then write the chunk to the already opened file.
-                    elif current_time + standard_file_name == last_used_fn:
-                        write_file.write(chunk)
-                    # If apscheduler announces a new datetime then open that new file and begin writing to it.
+                    print(f"Could not connect to {station_name} stream, retrying after {sleep_time} seconds.\n"
+                          f"Retry attempt #{retry_attempts}.\n")
+                    await asyncio.sleep(sleep_time)
+
+                if not run_before:
+                    first_time_attempts += 1
+                    print(f"Attempting initial connection to {station_name}... attempt number #{first_time_attempts}.\n")
+                    if first_time_attempts < 2:
+                        await asyncio.sleep(5)
                     else:
-                        write_file.close()
+                        await asyncio.sleep(random.randrange(5, 60))
+
+                async with session.get(station_url, timeout=timeout) as resp:
+                    retry_attempts = 0
+
+                    content_type = resp.headers.get("content-type", "")
+                    if not content_type.startswith(expected_content_type):
+                        sys.exit(f"Server's content‑type {resp.headers.get('content-type')} is not audio. Check the URL.")
+
+                    if not run_before and resp.status == 404:
+                        sys.exit("URL is 404. Check the link.")
+                    elif not run_before and resp.ok:
+                        dump_file_time = datetime.now().replace(microsecond=0).isoformat()
+                        current_time = dump_file_time.replace(":", "-")
+                        run_before = True
+                        headers_dump_file = (
+                            dump_file_time.replace(":", "-") +
+                            utc_offset + name_seperator +
+                            station_name + "_metadata.txt"
+                        )
+                        start_message = (
+                            f"URL: {station_url} returned 200 OK.\n"
+                            f"Saving {station_name} headers to: {headers_dump_file}.\n"
+                            f"Recording {station_name} with content‑type {resp.headers['content-type']} started at: "
+                            f"{dump_file_time}{utc_offset} / {tz_name}.\n"
+                            f"Socket timeout is: {sock_timeout}.\nRecording location: {save_to_directory}."
+                        )
+                        with open(headers_dump_file, "w") as headers_write:
+                            headers_write.write(f"{start_message}\n\nHeaders:\n{dict(resp.headers)}")
+                        print(start_message)
+
+                        if error_time:
+                            print(f"{station_name} resumed recording after {str(datetime.now() - error_time).split('.')[0]}.")
+                            error_time = False
+
+                    async for chunk in resp.content.iter_chunked(chunk_size):
+                        # file rotation logic:
                         file_name = current_time + standard_file_name
-                        write_file = open(file_name, "ab")
-                        write_file.write(chunk)
-                        last_used_fn = file_name
-                        print(f"New recording file for {station_name} is: {file_name}.")
+                        if not last_used_fn:
+                            write_file = open(file_name, "ab")
+                            write_file.write(chunk)
+                            last_used_fn = file_name
+                            print(f"Started recording to: {file_name}.\n")
+                        elif file_name == last_used_fn:
+                            write_file.write(chunk)
+                        else:
+                            write_file.close()
+                            write_file = open(file_name, "ab")
+                            write_file.write(chunk)
+                            last_used_fn = file_name
+                            print(f"New recording file for {station_name} is: {file_name}.")
+
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             retry_attempts += 1
-            # Aggressive attempt to reconnect on error.
             if retry_attempts < 5:
                 sleep_time = random.randrange(1, 2)
             else:
                 sleep_time = random.randrange(5, 30)
             error_time = datetime.now()
         except asyncio.CancelledError:
-            print(f"[INFO] {station_name} recording cancelled.")
             raise
         finally:
-            if write_file and not write_file.closed:
+            try:
                 write_file.close()
-                print(
-                    f"[INFO] Recording stopped for {station_name}. File: {file_name} closed safely."
-                )
+            except Exception:
+                pass
+            print(f"[INFO] Recording stopped for {station_name}. File closed safely.")
 
 
 def run_loop():
@@ -198,10 +186,12 @@ if __name__ == "__main__":
     try:
         run_loop()
     except KeyboardInterrupt:
-        # sys.exit("Received keyboard interrupt, exiting.")
         print("\n[INFO] KeyboardInterrupt received. Stopping ALL tasks...")
-    tasks = asyncio.all_tasks(loop)
-    for task in tasks:
-        task.cancel()
-    loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-    loop.close()
+    finally:
+        tasks = asyncio.all_tasks(loop)
+        for task in tasks:
+            task.cancel()
+        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+        ap_schedule.shutdown(wait=False)
+        loop.close()
+        print("[INFO] All tasks and scheduler shut down. Exiting.")
