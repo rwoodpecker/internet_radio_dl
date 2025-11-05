@@ -32,6 +32,7 @@ web_headers = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
 }
 chunk_size = 1024
+stream_current_time = {}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--url", type=str, help="url of stream")
@@ -42,8 +43,12 @@ args_provided = False
 
 
 def update_time():
-    global current_time
-    current_time = datetime.now().replace(microsecond=0).isoformat().replace(":", "-")
+    global stream_current_time
+    new_time = (
+        datetime.now().replace(second=0, microsecond=0).isoformat().replace(":", "-")
+    )
+    for station_name in dict_streams.keys():
+        stream_current_time[station_name] = new_time
 
 
 def update_time_safe():
@@ -51,12 +56,11 @@ def update_time_safe():
 
 
 async def record_station(station_name, station_url, ext=None, sock_timeout=None):
-    global current_time
     last_used_fn = None
     first_time_attempts = 0
     retry_attempts = 0
     run_before = False
-    error_time = False
+    error_time = None
     utc_offset = time.strftime("%z")
     tz_name = datetime.now().astimezone().tzname()
     cleanurl = station_url.rstrip("/")
@@ -71,18 +75,22 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
 
     timeout = aiohttp.ClientTimeout(total=None, sock_connect=5, sock_read=sock_timeout)
 
-    # Use async with for the session so it closes cleanly.
-    async with aiohttp.ClientSession(timeout=timeout, headers=web_headers) as session:
+    while True:
         try:
-            while True:
-                if error_time:
-                    print(f"Could not connect to {station_name} stream, retrying after {sleep_time} seconds.\n"
-                          f"Retry attempt #{retry_attempts}.\n")
+            async with aiohttp.ClientSession(
+                timeout=timeout, headers=web_headers
+            ) as session:
+                if error_time is not None:
+                    print(
+                        f"Could not connect to {station_name} stream, retrying after {sleep_time} seconds.\n"
+                    )
                     await asyncio.sleep(sleep_time)
 
                 if not run_before:
                     first_time_attempts += 1
-                    print(f"Attempting initial connection to {station_name}... attempt number #{first_time_attempts}.\n")
+                    print(
+                        f"Attempting initial connection to {station_name}... attempt number #{first_time_attempts}.\n"
+                    )
                     if first_time_attempts < 2:
                         await asyncio.sleep(5)
                     else:
@@ -90,40 +98,60 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
 
                 async with session.get(station_url, timeout=timeout) as resp:
                     retry_attempts = 0
-
                     content_type = resp.headers.get("content-type", "")
                     if not content_type.startswith(expected_content_type):
-                        sys.exit(f"Server's content‑type {resp.headers.get('content-type')} is not audio. Check the URL.")
+                        sys.exit(
+                            f"Server's content‑type {resp.headers.get('content-type')} is not audio. Check the URL."
+                        )
 
                     if not run_before and resp.status == 404:
                         sys.exit("URL is 404. Check the link.")
                     elif not run_before and resp.ok:
-                        dump_file_time = datetime.now().replace(microsecond=0).isoformat()
-                        current_time = dump_file_time.replace(":", "-")
+                        if station_name not in stream_current_time:
+                            dump_file_time = (
+                                datetime.now().replace(microsecond=0).isoformat()
+                            )
+                            stream_current_time[station_name] = dump_file_time.replace(
+                                ":", "-"
+                            )
+                        stream_time = stream_current_time[station_name]
                         run_before = True
                         headers_dump_file = (
-                            dump_file_time.replace(":", "-") +
-                            utc_offset + name_seperator +
-                            station_name + "_metadata.txt"
+                            stream_time
+                            + utc_offset
+                            + name_seperator
+                            + station_name
+                            + "_metadata.txt"
                         )
                         start_message = (
                             f"URL: {station_url} returned 200 OK.\n"
                             f"Saving {station_name} headers to: {headers_dump_file}.\n"
                             f"Recording {station_name} with content‑type {resp.headers['content-type']} started at: "
-                            f"{dump_file_time}{utc_offset} / {tz_name}.\n"
+                            f"{stream_time}{utc_offset} / {tz_name}.\n"
                             f"Socket timeout is: {sock_timeout}.\nRecording location: {save_to_directory}."
                         )
                         with open(headers_dump_file, "w") as headers_write:
-                            headers_write.write(f"{start_message}\n\nHeaders:\n{dict(resp.headers)}")
+                            headers_write.write(
+                                f"{start_message}\n\nHeaders:\n{dict(resp.headers)}"
+                            )
                         print(start_message)
 
-                        if error_time:
-                            print(f"{station_name} resumed recording after {str(datetime.now() - error_time).split('.')[0]}.")
-                            error_time = False
-
                     async for chunk in resp.content.iter_chunked(chunk_size):
-                        # file rotation logic:
-                        file_name = current_time + standard_file_name
+                        if error_time is not None:
+                            print(
+                                f"{station_name} resumed recording after {str(datetime.now() - error_time).split('.')[0]}.\n"
+                            )
+                            error_time = None
+                        if station_name not in stream_current_time:
+                            stream_current_time[station_name] = (
+                                datetime.now()
+                                .replace(microsecond=0)
+                                .isoformat()
+                                .replace(":", "-")
+                            )
+                        file_name = (
+                            stream_current_time[station_name] + standard_file_name
+                        )
                         if not last_used_fn:
                             write_file = open(file_name, "ab")
                             write_file.write(chunk)
@@ -136,23 +164,22 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                             write_file = open(file_name, "ab")
                             write_file.write(chunk)
                             last_used_fn = file_name
-                            print(f"New recording file for {station_name} is: {file_name}.")
+                            print(
+                                f"New recording file for {station_name} is: {file_name}."
+                            )
 
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             retry_attempts += 1
-            if retry_attempts < 5:
+            if retry_attempts < 60:
                 sleep_time = random.randrange(1, 2)
             else:
                 sleep_time = random.randrange(5, 30)
-            error_time = datetime.now()
+            if error_time is None:
+                error_time = datetime.now()
         except asyncio.CancelledError:
-            raise
-        finally:
-            try:
-                write_file.close()
-            except Exception:
-                pass
+            write_file.close()
             print(f"[INFO] Recording stopped for {station_name}. File closed safely.")
+            raise
 
 
 def run_loop():
