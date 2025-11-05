@@ -31,7 +31,7 @@ name_seperator = "_"
 web_headers = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
 }
-chunk_size = 1024
+chunk_size = 2048
 stream_current_time = {}
 
 parser = argparse.ArgumentParser()
@@ -134,7 +134,6 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                                 f"{start_message}\n\nHeaders:\n{dict(resp.headers)}"
                             )
                         print(start_message)
-
                     async for chunk in resp.content.iter_chunked(chunk_size):
                         if error_time is not None:
                             print(
