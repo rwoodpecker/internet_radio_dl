@@ -64,6 +64,8 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
     utc_offset = time.strftime("%z")
     tz_name = datetime.now().astimezone().tzname()
     cleanurl = station_url.rstrip("/")
+    timeout = aiohttp.ClientTimeout(total=None, sock_connect=5, sock_read=sock_timeout)
+
     if ext:
         file_extension = "." + ext.lstrip(".")
     else:
@@ -72,8 +74,6 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
 
     if sock_timeout is None:
         sock_timeout = 5
-
-    timeout = aiohttp.ClientTimeout(total=None, sock_connect=5, sock_read=sock_timeout)
 
     while True:
         try:
@@ -103,7 +103,6 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                         sys.exit(
                             f"Server's content‑type {resp.headers.get('content-type')} is not audio. Check the URL."
                         )
-
                     if not run_before and resp.status == 404:
                         sys.exit("URL is 404. Check the link.")
                     elif not run_before and resp.ok:
@@ -167,7 +166,6 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                             print(
                                 f"New recording file for {station_name} is: {file_name}."
                             )
-
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             retry_attempts += 1
             if retry_attempts < 60:
