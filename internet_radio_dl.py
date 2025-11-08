@@ -99,7 +99,7 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                 async with session.get(station_url, timeout=timeout) as resp:
                     retry_attempts = 0
                     content_type = resp.headers.get("content-type", "")
-                    if not run_before and content_type.startswith(expected_content_type):
+                    if not run_before and not content_type.startswith(expected_content_type):
                         sys.exit(
                             f"Server's content‑type {resp.headers.get('content-type')} is not audio. Check the URL."
                         )
