@@ -82,7 +82,7 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
             ) as session:
                 if error_time is not None:
                     print(
-                        f"Could not connect to {station_name} stream, retrying after {sleep_time} seconds.\n"
+                        f"Could not connect to {station_name} at {datetime.now().replace(microsecond=0).isoformat()}, retrying after {sleep_time} seconds.\n"
                     )
                     await asyncio.sleep(sleep_time)
 
@@ -167,10 +167,10 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                             )
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             retry_attempts += 1
-            if retry_attempts < 60:
-                sleep_time = random.randrange(1, 2)
+            if retry_attempts < 5:
+                sleep_time = round(random.uniform(0.1, 1))
             else:
-                sleep_time = random.randrange(5, 30)
+                sleep_time = random.randrange(1, 5)
             if error_time is None:
                 error_time = datetime.now()
         except asyncio.CancelledError:
