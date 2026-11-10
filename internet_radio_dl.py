@@ -1,4 +1,3 @@
-
 import asyncio
 import aiohttp
 from datetime import datetime
@@ -33,7 +32,7 @@ expected_content_type = "audio/"
 name_seperator = "_"
 
 web_headers = {
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
 }
 
 chunk_size = 2048
@@ -52,10 +51,7 @@ def update_time():
     global stream_current_time
 
     new_time = (
-        datetime.now()
-        .replace(second=0, microsecond=0)
-        .isoformat()
-        .replace(":", "-")
+        datetime.now().replace(second=0, microsecond=0).isoformat().replace(":", "-")
     )
 
     station_names = set(dict_streams.keys())
@@ -72,6 +68,7 @@ def update_time_safe():
 
 
 async def record_station(station_name, station_url, ext=None, sock_timeout=None):
+
     write_file = None
     last_used_fn = None
     last_used_stream_time = None
@@ -79,18 +76,16 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
     first_time_attempts = 0
     retry_attempts = 0
     run_before = False
+
     error_time = None
+    recovery_time = None
 
     cleanurl = station_url.rstrip("/")
 
     if sock_timeout is None:
         sock_timeout = 5
 
-    timeout = aiohttp.ClientTimeout(
-        total=None,
-        sock_connect=5,
-        sock_read=sock_timeout
-    )
+    timeout = aiohttp.ClientTimeout(total=None, sock_connect=5, sock_read=sock_timeout)
 
     if ext:
         file_extension = "." + ext.lstrip(".")
@@ -103,19 +98,22 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
         while True:
             try:
                 async with aiohttp.ClientSession(
-                    timeout=timeout,
-                    headers=web_headers
+                    timeout=timeout, headers=web_headers
                 ) as session:
 
+                    # Apply the existing network retry delay.
                     if error_time is not None:
                         print(
                             f"Could not connect to {station_name} at "
                             f"{datetime.now().replace(microsecond=0).isoformat()}, "
                             f"retrying after {sleep_time} seconds.\n"
                         )
+
                         await asyncio.sleep(sleep_time)
 
-                    if not run_before:
+                    # Initial connection delay only.
+                    # Subsequent failures use the existing retry logic above.
+                    if not run_before and first_time_attempts == 0:
                         first_time_attempts += 1
 
                         print(
@@ -123,20 +121,17 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                             f"attempt number #{first_time_attempts}.\n"
                         )
 
-                        if first_time_attempts < 2:
-                            await asyncio.sleep(5)
-                        else:
-                            await asyncio.sleep(random.randrange(5, 60))
+                        await asyncio.sleep(5)
 
                     async with session.get(station_url, timeout=timeout) as resp:
 
                         content_type = resp.headers.get("content-type", "")
 
                         # Validate every HTTP connection.
-                        if not resp.ok:
-                            if resp.status == 404:
-                                sys.exit("URL is 404. Check the link.")
+                        if resp.status == 404:
+                            sys.exit("URL is 404. Check the link.")
 
+                        if not resp.ok:
                             sys.exit(
                                 f"HTTP error {resp.status} from {station_url}. "
                                 f"Check the link or server."
@@ -148,15 +143,18 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                                 f"is not audio. Check the URL."
                             )
 
-                        retry_attempts = 0
+                        # A valid HTTP connection has been established.
+                        # Clear the pending retry delay so a subsequent
+                        # clean EOF reconnects immediately.
+                        if error_time is not None:
+                            recovery_time = error_time
+                            error_time = None
 
                         if not run_before:
 
                             if station_name not in stream_current_time:
                                 dump_file_time = (
-                                    datetime.now()
-                                    .replace(microsecond=0)
-                                    .isoformat()
+                                    datetime.now().replace(microsecond=0).isoformat()
                                 )
 
                                 stream_current_time[station_name] = (
@@ -164,10 +162,10 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                                 )
 
                             stream_time = stream_current_time[station_name]
+
                             run_before = True
 
-                            # Obtain the current local timezone information
-                            # when creating the initial metadata.
+                            # Current local timezone information.
                             local_now = datetime.now().astimezone()
                             utc_offset = local_now.strftime("%z")
                             tz_name = local_now.tzname()
@@ -201,12 +199,16 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
 
                         async for chunk in resp.content.iter_chunked(chunk_size):
 
-                            if error_time is not None:
+                            # Actual audio reception resets the retry counter.
+                            retry_attempts = 0
+
+                            if recovery_time is not None:
                                 print(
                                     f"{station_name} resumed recording after "
-                                    f"{str(datetime.now() - error_time).split('.')[0]}.\n"
+                                    f"{str(datetime.now() - recovery_time).split('.')[0]}.\n"
                                 )
-                                error_time = None
+
+                                recovery_time = None
 
                             if station_name not in stream_current_time:
                                 stream_current_time[station_name] = (
@@ -218,16 +220,17 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
 
                             stream_time = stream_current_time[station_name]
 
-                            # Keep the existing filename during reconnects
+                            # Reuse the existing filename when reconnecting
                             # within the same hourly recording period.
-                            if stream_time == last_used_stream_time:
+                            if (
+                                stream_time == last_used_stream_time
+                                and last_used_fn is not None
+                            ):
                                 file_name = last_used_fn
 
                             else:
-                                # Refresh the timezone only when creating
-                                # a new hourly recording file. This ensures
-                                # DST changes are reflected in the next file
-                                # without changing an already-open recording.
+                                # Refresh timezone information only when
+                                # creating a new recording file.
                                 local_now = datetime.now().astimezone()
                                 utc_offset = local_now.strftime("%z")
                                 tz_name = local_now.tzname()
@@ -250,9 +253,7 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                                 last_used_stream_time = stream_time
                                 last_flush_time = time.monotonic()
 
-                                print(
-                                    f"Started recording to: {file_name}.\n"
-                                )
+                                print(f"Started recording to: {file_name}.\n")
 
                             elif file_name == last_used_fn:
 
@@ -261,6 +262,7 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                             else:
 
                                 write_file.close()
+
                                 write_file = open(file_name, "ab")
                                 write_file.write(chunk)
 
@@ -273,16 +275,14 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                                     f"is: {file_name}."
                                 )
 
-                            # Flush every 30 seconds, not every chunk.
-                            if (
-                                time.monotonic() - last_flush_time
-                                >= 30
-                            ):
+                            # Flush periodically rather than every chunk.
+                            if time.monotonic() - last_flush_time >= 30:
                                 write_file.flush()
                                 last_flush_time = time.monotonic()
 
-                # A clean EOF closes the file and immediately reconnects.
-                # No delay or backoff is applied.
+                # Normal EOF:
+                # Close the file and immediately reconnect.
+                # No sleep or backoff is applied.
                 if write_file is not None:
                     write_file.close()
                     write_file = None
@@ -304,16 +304,21 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                 if error_time is None:
                     error_time = datetime.now()
 
-            except OSError as e:
+    except asyncio.CancelledError:
 
-                print(
-                    f"[ERROR] File or filesystem error for {station_name}: "
-                    f"{e}. Stopping this recording task."
-                )
+        print(f"[INFO] Recording stopped for {station_name}.")
 
-                return
+        raise
+
+    except OSError as e:
+
+        print(
+            f"[ERROR] File or filesystem error for {station_name}: "
+            f"{e}. Stopping this recording task."
+        )
 
     finally:
+
         if write_file is not None:
             try:
                 write_file.close()
@@ -323,24 +328,22 @@ async def record_station(station_name, station_url, ext=None, sock_timeout=None)
                     f"{station_name}: {e}"
                 )
 
-        print(
-            f"[INFO] Recording stopped for {station_name}. "
-            f"File cleanup completed."
-        )
+        print(f"[INFO] File cleanup completed for {station_name}.")
 
 
 def run_loop():
+
     if args_provided:
         loop.create_task(record_station(args.name, args.url))
+
     else:
         for key, value in dict_streams.items():
+
             url = value["url"]
             ext = value.get("ext")
             sock_timeout = value.get("sock_timeout")
 
-            loop.create_task(
-                record_station(key, url, ext, sock_timeout)
-            )
+            loop.create_task(record_station(key, url, ext, sock_timeout))
 
     loop.run_forever()
 
@@ -365,33 +368,29 @@ if __name__ == "__main__":
         args_provided = True
 
     ap_schedule = BackgroundScheduler()
-    ap_schedule.add_job(
-        update_time_safe,
-        trigger="cron",
-        hour="*"
-    )
+
+    ap_schedule.add_job(update_time_safe, trigger="cron", hour="*")
+
     ap_schedule.start()
 
     try:
         run_loop()
 
     except KeyboardInterrupt:
-        print(
-            "\n[INFO] KeyboardInterrupt received. "
-            "Stopping ALL tasks..."
-        )
+
+        print("\n[INFO] KeyboardInterrupt received. " "Stopping ALL tasks...")
 
     finally:
+
         tasks = asyncio.all_tasks(loop)
 
         for task in tasks:
             task.cancel()
 
-        loop.run_until_complete(
-            asyncio.gather(*tasks, return_exceptions=True)
-        )
+        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
 
         ap_schedule.shutdown(wait=False)
+
         loop.close()
 
         print("[INFO] All tasks and scheduler shut down. Exiting.")
